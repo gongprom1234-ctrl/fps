@@ -1,0 +1,256 @@
+-- โหลด Rayfield UI Library
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+-- สร้างหน้าต่าง GUI ภาษาไทย
+local Window = Rayfield:CreateWindow({
+   Name = "🌲 สคริปต์ 99 คืนในป่า | 99 Nights in the Forest",
+   LoadingTitle = "กำลังโหลดระบบ...",
+   LoadingSubtitle = "โดย AI Assistant",
+   ConfigurationSaving = { Enabled = false },
+   Discord = { Enabled = false },
+   KeySystem = false
+})
+
+------------------------------------------------------------------
+-- ตัวแปรระบบ
+------------------------------------------------------------------
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+
+local Flying = false
+local FlySpeed = 50
+local AutoChop = false
+local ESPEnabled = false
+local ESPHighlights = {}
+
+------------------------------------------------------------------
+-- แท็บที่ 1: แคมป์, วาร์ป & การบิน
+------------------------------------------------------------------
+local Tab1 = Window:CreateTab("แคมป์ & ระบบวาร์ป ⛺", 4483362458)
+
+Tab1:CreateSection("🔥 ระบบแคมป์ไฟ")
+
+Tab1:CreateButton({
+   Name = "อัปเกรดแคมป์ไฟเป็นเลเวล 6 ทันที",
+   Callback = function()
+      pcall(function()
+         -- ส่งสัญญาณอัปเกรดแคมป์ไฟ (ปรับตามชื่อ RemoteEvent ในเกม)
+         local fireEvents = {
+            ReplicatedStorage:FindFirstChild("UpgradeCampfire"),
+            ReplicatedStorage:FindFirstChild("Events") and ReplicatedStorage.Events:FindFirstChild("UpgradeCamp"),
+            Workspace:FindFirstChild("Campfire") and Workspace.Campfire:FindFirstChild("Upgrade")
+         }
+         
+         for _, event in pairs(fireEvents) do
+            if event then
+               if event:IsA("RemoteEvent") then
+                  event:FireServer(6)
+               elseif event:IsA("BindableEvent") then
+                  event:Fire()
+               end
+            end
+         end
+         
+         Rayfield:Notify({
+            Title = "สำเร็จ!",
+            Content = "ส่งคำขออัปเกรดแคมป์ไฟเป็นเลเวล 6 เรียบร้อยแล้ว",
+            Duration = 3,
+            Image = 4483362458,
+         })
+      end)
+   end,
+})
+
+Tab1:CreateSection("✈️ ระบบบิน & วาร์ป")
+
+local ToggleFly = Tab1:CreateToggle({
+   Name = "เปิด/ปิด ระบบบิน (Fly)",
+   CurrentValue = false,
+   Flag = "FlyToggle",
+   Callback = function(Value)
+      Flying = Value
+      local char = LocalPlayer.Character
+      if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+      
+      if Flying then
+         local hrp = char.HumanoidRootPart
+         local bg = Instance.new("BodyGyro", hrp)
+         local bv = Instance.new("BodyVelocity", hrp)
+         bg.Name = "FlyBG"
+         bg.P = 9e4
+         bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+         bg.cframe = hrp.CFrame
+         bv.Name = "FlyBV"
+         bv.velocity = Vector3.new(0, 0.1, 0)
+         bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+         
+         task.spawn(function()
+            local camera = Workspace.CurrentCamera
+            while Flying and char and char:FindFirstChild("HumanoidRootPart") do
+               task.wait()
+               local humanoid = char:FindFirstChildOfClass("Humanoid")
+               if humanoid then
+                  local moveDir = humanoid.MoveDirection
+                  bv.velocity = (camera.CFrame.LookVector * (moveDir.Z * -FlySpeed)) + (camera.CFrame.RightVector * (moveDir.X * FlySpeed))
+                  bg.cframe = camera.CFrame
+               end
+            end
+            bv:Destroy()
+            bg:Destroy()
+         end)
+      else
+         if char.HumanoidRootPart:FindFirstChild("FlyBG") then char.HumanoidRootPart.FlyBG:Destroy() end
+         if char.HumanoidRootPart:FindFirstChild("FlyBV") then char.HumanoidRootPart.FlyBV:Destroy() end
+      end
+   end,
+})
+
+Tab1:CreateButton({
+   Name = "วาร์ปไปปราสาทเพชร (Diamond Castle)",
+   Callback = function()
+      pcall(function()
+         local castle = Workspace:FindFirstChild("DiamondCastle") or Workspace:FindFirstChild("Castle") or Workspace:FindFirstChild("Diamond_Castle")
+         if castle and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = castle:GetPivot() or castle.CFrame * CFrame.new(0, 5, 0)
+         else
+            -- พิกัดสำรองของปราสาทเพชร
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(1000, 50, 1000)
+         end
+      end)
+   end,
+})
+
+Tab1:CreateButton({
+   Name = "วาร์ปกลับแคมป์ (Camp)",
+   Callback = function()
+      pcall(function()
+         local camp = Workspace:FindFirstChild("Campfire") or Workspace:FindFirstChild("Camp") or Workspace:FindFirstChild("MainCamp")
+         if camp and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CFrame = camp:GetPivot() or camp.CFrame * CFrame.new(0, 5, 0)
+         else
+            -- พิกัดสำรองแคมป์กลาง
+            LocalPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, 10, 0)
+         end
+      end)
+   end,
+})
+
+------------------------------------------------------------------
+-- แท็บที่ 2: ตัวละคร, มองทะลุ & ฟาร์มไม้
+------------------------------------------------------------------
+local Tab2 = Window:CreateTab("ตัวละคร & การฟาร์ม า", 4483362458)
+
+Tab2:CreateSection("🏃‍♂️ ความเร็วตัวละคร (1 - 300)")
+
+Tab2:CreateSlider({
+   Name = "ความเร็วการวิ่ง (WalkSpeed)",
+   Range = {1, 300},
+   Increment = 1,
+   Suffix = " Speed",
+   CurrentValue = 16,
+   Flag = "SpeedSlider",
+   Callback = function(Value)
+      pcall(function()
+         if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Value
+         end
+      end)
+   end,
+})
+
+Tab2:CreateSection("👁️ มองทะลุ (ESP / Wallhack)")
+
+Tab2:CreateToggle({
+   Name = "เปิดมองทะลุผู้เล่นและสิ่งของ (ESP)",
+   CurrentValue = false,
+   Flag = "ESPToggle",
+   Callback = function(Value)
+      ESPEnabled = Value
+      if ESPEnabled then
+         task.spawn(function()
+            while ESPEnabled do
+               for _, player in pairs(Players:GetPlayers()) do
+                  if player ~= LocalPlayer and player.Character and not ESPHighlights[player] then
+                     local highlight = Instance.new("Highlight")
+                     highlight.Parent = player.Character
+                     highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                     highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                     ESPHighlights[player] = highlight
+                  end
+               end
+               task.wait(1)
+            end
+         end)
+      else
+         for _, highlight in pairs(ESPHighlights) do
+            if highlight then highlight:Destroy() end
+         end
+         ESPHighlights = {}
+      end
+   end,
+})
+
+Tab2:CreateSection("🪵 ระบบเสกไม้ & ตัดไม้อัตโนมัติ")
+
+Tab2:CreateButton({
+   Name = "เสกไม้เข้าตัว (Spawn Wood Log)",
+   Callback = function()
+      pcall(function()
+         local woodEvents = {
+            ReplicatedStorage:FindFirstChild("SpawnWood"),
+            ReplicatedStorage:FindFirstChild("GiveItem"),
+            ReplicatedStorage:FindFirstChild("Events") and ReplicatedStorage.Events:FindFirstChild("SpawnLog")
+         }
+         
+         for _, event in pairs(woodEvents) do
+            if event then
+               event:FireServer("Wood", 10)
+            end
+         end
+      end)
+   end,
+})
+
+Tab2:CreateToggle({
+   Name = "ตัดไม้อัตโนมัติ (ไม่ต้องเดินไปหาต้นไม้)",
+   CurrentValue = false,
+   Flag = "AutoChopToggle",
+   Callback = function(Value)
+      AutoChop = Value
+      if AutoChop then
+         task.spawn(function()
+            while AutoChop do
+               task.wait(0.3)
+               pcall(function()
+                  -- ค้นหาต้นไม้ใน Workspace
+                  local trees = Workspace:FindFirstChild("Trees") or Workspace:FindFirstChild("Forest") or Workspace
+                  for _, tree in pairs(trees:GetChildren()) do
+                     if not AutoChop then break end
+                     if tree.Name:lower():find("tree") or tree.Name:lower():find("wood") then
+                        -- ส่งสัญญาณตัดไม้ทางไกลโดยไม่ต้องเดินไปหา
+                        local chopEvent = tree:FindFirstChild("Chop") or ReplicatedStorage:FindFirstChild("ChopTree")
+                        if chopEvent then
+                           if chopEvent:IsA("RemoteEvent") then
+                              chopEvent:FireServer()
+                           elseif chopEvent:IsA("RemoteFunction") then
+                              chopEvent:InvokeServer()
+                           end
+                        end
+                     end
+                  end
+               end)
+            end
+         end)
+      end
+   end,
+})
+
+-- แจ้งเตือนเมื่อโหลดสำเร็จ
+Rayfield:Notify({
+   Title = "โหลดสคริปต์สำเร็จ!",
+   Content = "สคริปต์ 99 คืนในป่า พร้อมใช้งานแล้ว",
+   Duration = 5,
+   Image = 4483362458,
+})
